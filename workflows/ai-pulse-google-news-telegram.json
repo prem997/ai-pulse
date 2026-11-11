@@ -1,0 +1,110 @@
+{
+  "name": "AI Pulse — Google News to Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 2
+            }
+          ]
+        }
+      },
+      "id": "a2f74e12-1f31-4b5a-9e10-2d80d6f34a01",
+      "name": "Every 2 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://news.google.com/rss/search?q=(artificial+intelligence+OR+generative+AI+OR+LLM)&hl=en-IN&gl=IN&ceid=IN:en",
+        "options": {}
+      },
+      "id": "b5e0c3f4-9b4a-4d4e-a4b2-6f5c8a0d12e3",
+      "name": "Fetch Latest AI Headlines",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [
+        460,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nstaticData.sentLinks = staticData.sentLinks || [];\nconst seen = new Set(staticData.sentLinks);\nconst fresh = items.filter(item => {\n  const link = item.json.link || item.json.guid || item.json.id;\n  if (!link || seen.has(link)) return false;\n  seen.add(link);\n  item.json.newsLink = link;\n  return true;\n}).slice(0, 5);\nstaticData.sentLinks = Array.from(seen).slice(-500);\nreturn fresh.map(item => {\n  const title = item.json.title || 'AI news update';\n  const link = item.json.newsLink;\n  const published = item.json.isoDate || item.json.pubDate || '';\n  item.json.telegramText = `🤖 *AI PULSE — Latest AI News*\\n\\n📰 ${title}\\n${published ? `🕒 ${published}\\n` : ''}\\n🔗 ${link}\\n\\n_Your personal AI news radar_`;\n  return item;\n});"
+      },
+      "id": "c6f1d2a3-8b7e-4c9d-a5f0-1e2b3c4d5f60",
+      "name": "Filter Duplicates & Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_TELEGRAM_CHAT_ID",
+        "text": "={{ $json.telegramText }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "d7a2e3b4-9c8f-4d1e-b6a0-2f3c4d5e6a70",
+      "name": "Deliver to Telegram",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        940,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Every 2 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Fetch Latest AI Headlines",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Latest AI Headlines": {
+      "main": [
+        [
+          {
+            "node": "Filter Duplicates & Format",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Duplicates & Format": {
+      "main": [
+        [
+          {
+            "node": "Deliver to Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "tags": []
+}
